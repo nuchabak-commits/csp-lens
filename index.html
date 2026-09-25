@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSP Lens v0.5</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231d8fea'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='30' font-family='Arial' font-weight='700' fill='white'%3E%7B%7D%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header><div class="bar"><div class="brand"><div class="logo">{ }</div><div><h1>CSP Lens</h1><p>Understand a website's Content Security Policy</p></div></div><div class="tag">v0.6.5 · Site Overview + Page Inspector</div></div></header>
+<main>
+<div class="hero"><h2>What's protecting this website?</h2><p>Enter the homepage once. CSP Lens crawls same-origin internal pages and compares the CSP returned by each page.</p></div>
+<div class="search"><input id="url" value="" placeholder="https://example.com" autocomplete="url"><button class="btn" id="go">Scan site</button></div>
+<div class="scan-options">
+ <label><input type="radio" name="mode" value="site" checked> Crawl website</label>
+ <label><input type="radio" name="mode" value="single"> This URL only</label>
+ <label>Max pages <select id="maxPages"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
+</div>
+<div id="error" class="error hidden"></div>
+<div id="loading" class="loading hidden">Analyzing response headers…</div>
+<div id="progress" class="progress hidden"><div class="progress-top"><span id="progressText">Starting crawl…</span><span id="progressCount">0 pages</span></div><div class="track"><div class="barfill" id="barfill"></div></div></div>
+<div id="siteResult" class="hidden">
+ <section class="card section site-hero">
+   <div>
+     <small>SITE SCAN COMPLETE</small>
+     <h2 id="siteHeadline">Scan complete</h2>
+     <p id="siteSubline"></p>
+   </div>
+   <div class="scan-score"><b id="siteScanRatio">0 / 0</b><span>pages scanned</span></div>
+ </section>
+ <div id="limitWarning" class="warning-box hidden" style="margin:12px 0"></div>
+
+ <div class="crawl-summary">
+  <div class="card crawlstat"><small>Scanned URLs</small><b id="cScanned">0</b></div>
+  <div class="card crawlstat"><small>Valid pages</small><b id="cValid">0</b></div>
+  <div class="card crawlstat"><small>CSP detected</small><b id="cWith">0</b></div>
+  <div class="card crawlstat"><small>No CSP</small><b id="cWithout">0</b></div>
+  <div class="card crawlstat"><small>Broken links</small><b id="cBroken">0</b></div>
+  <div class="card crawlstat"><small>Crawl errors</small><b id="cErrors">0</b></div>
+ </div>
+
+ <div class="grid site-grid">
+  <section class="card section"><h3>Policy Groups</h3><div id="policyGroups"></div></section>
+  <section class="card section"><h3>Site Findings</h3><div id="siteFindings"></div><h3 style="margin-top:18px">Pages requiring review</h3><div id="reviewPages"></div></section>
+ </div>
+
+ <section class="card section" style="margin-top:14px">
+   <div class="table-tools">
+     <h3 style="margin:0">All scanned pages</h3>
+     <input id="pageSearch" class="table-search" placeholder="Search URL...">
+   </div>
+   <div class="filter-row" id="pageFilters">
+     <button class="filter active" data-filter="all">All <span id="fAll">0</span></button>
+     <button class="filter" data-filter="csp">CSP <span id="fCsp">0</span></button>
+     <button class="filter" data-filter="nocsp">No CSP <span id="fNo">0</span></button>
+     <button class="filter" data-filter="broken">Broken <span id="fBroken">0</span></button>
+     <button class="filter" data-filter="http">HTTP issues <span id="fHttp">0</span></button>
+     <button class="filter" data-filter="error">Crawl errors <span id="fErr">0</span></button>
+   </div>
+   <div style="overflow:auto"><table class="page-table"><thead><tr><th>URL</th><th>Status</th><th>CSP</th><th>Policy</th></tr></thead><tbody id="pageRows"></tbody></table></div>
+   <div class="pager"><button id="prevPage">‹</button><span id="pageInfo">1 / 1</span><button id="nextPage">›</button></div>
+ </section>
+</div>
+<div id="result" class="hidden">
+ <div class="status"><div><strong id="site"></strong><div style="font-size:11px;color:var(--muted);margin-top:3px" id="finalUrl"></div><div class="pills" id="statusPills"></div></div><strong id="cspStatus" class="ok"></strong></div>
+ <div class="stats"><div class="card stat"><small>Directives</small><b id="dirs">0</b></div><div class="card stat"><small>Sources</small><b id="sources">0</b></div><div class="card stat"><small>Findings</small><b id="findingsCount">0</b></div><div class="card stat"><small>Information</small><b id="infoCount">0</b></div></div>
+ <div class="tabs"><button class="tab active" data-tab="overview">Overview</button><button class="tab" data-tab="policy">Policy</button><button class="tab" data-tab="recommended">Recommended</button><button class="tab" data-tab="headers">Raw headers</button></div>
+
+ <div id="overview" class="tabpane active">
+  <div class="grid">
+   <section class="card section"><h3>Findings</h3><div id="findings"></div></section>
+   <section class="card section"><h3>Effective Policy</h3><div id="effective"></div></section>
+  </div>
+  <div class="grid" style="margin-top:14px">
+   <section class="card section"><h3>Directive Explorer</h3><div id="directiveList"></div></section>
+   <section class="card section"><h3>Source Summary</h3><div id="sourceSummary"></div></section>
+  </div>
+ </div>
+
+ <div id="policy" class="tabpane">
+  <section class="card section"><h3>Enforced Content-Security-Policy</h3><pre id="rawCsp"></pre></section>
+  <section class="card section" style="margin-top:14px"><h3>Content-Security-Policy-Report-Only</h3><pre id="rawReport"></pre></section>
+ </div>
+ <div id="recommended" class="tabpane">
+   <div class="recommended-box">
+    <div class="warning-box"><b>Test before enforcing.</b> These are hardening suggestions derived from the response header only. CSP Lens cannot know every runtime dependency, inline style, form destination, or embedding requirement on the site.</div>
+    <section class="card section"><h3>Recommended Changes</h3><div id="fixes"></div></section>
+    <section class="card section"><div class="fhead"><h3 style="margin:0">Proposed CSP</h3><button class="copy-small" id="copyProposed">Copy proposed CSP</button></div><pre id="proposedCsp" style="margin-top:12px"></pre></section>
+   </div>
+  </div>
+ <div id="headers" class="tabpane"><section class="card section"><h3>Response Headers</h3><table class="header-table" id="headerTable"></table></section></div>
+</div>
+</main>
+<script src="./app.js" defer></script>
+
+<div id="inspectorBackdrop" class="inspector-backdrop hidden">
+ <aside class="inspector" id="inspector">
+  <div class="inspector-head">
+   <div class="inspector-title">
+    <div><h2 id="inspectorName">Page Inspector</h2><div class="inspector-url" id="inspectorUrl"></div></div>
+    <button class="close-inspector" id="closeInspector">×</button>
+   </div>
+  </div>
+  <div class="inspector-body">
+   <div class="inspector-meta">
+    <div class="card"><small>HTTP status</small><b id="iStatus">—</b></div>
+    <div class="card"><small>CSP</small><b id="iCspStatus">—</b></div>
+    <div class="card"><small>Policy</small><b id="iPolicy">—</b></div>
+    <div class="card"><small>Findings</small><b id="iFindingCount">0</b></div>
+   </div>
+   <div id="policyApplies" class="policy-pages-note hidden"></div>
+   <div class="inspector-tabs">
+    <button class="itab active" data-itab="ioverview">Overview</button>
+    <button class="itab" data-itab="ipolicy">Policy</button>
+    <button class="itab" data-itab="irecommended">Recommended</button>
+    <button class="itab" data-itab="iheaders">Raw Headers</button>
+   </div>
+   <div id="ioverview" class="ipane active"><div class="i-grid"><section class="i-card"><h3>Findings</h3><div id="iFindings"></div></section><section class="i-card"><h3>Effective Policy</h3><div id="iEffective"></div></section></div><div class="i-grid" style="margin-top:10px"><section class="i-card"><h3>Directive Explorer</h3><div id="iDirectives"></div></section><section class="i-card"><h3>Source Summary</h3><div id="iSources"></div></section></div></div>
+   <div id="ipolicy" class="ipane"><section class="i-card"><h3>Detected CSP</h3><div class="mono-box" id="iRawCsp"></div></section></div>
+   <div id="irecommended" class="ipane"><div class="warning-box" style="margin-bottom:10px"><b>Test before enforcing.</b> Suggestions are based on response headers and cannot know every runtime dependency.</div><section class="i-card"><h3>Recommended Changes</h3><div id="iRecommendations"></div></section><section class="i-card" style="margin-top:10px"><h3>Proposed CSP</h3><div class="mono-box" id="iProposed"></div></section></div>
+   <div id="iheaders" class="ipane"><section class="i-card"><h3>Response / Security Headers</h3><table class="raw-table" id="iHeaders"></table></section></div>
+  </div>
+ </aside>
+</div>
+
+</body></html>
